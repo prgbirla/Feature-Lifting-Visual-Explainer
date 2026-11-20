@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Decision Boundaries &amp; Feature Lifting</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--mut:#6b6a64;--line:#d9d6cc;--card:#f1eee6;--k0:#d9603b;--k1:#d79a00;--k2:#2f7fc1;--surf:#7a7a70;--acc:#2f7fc1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--fg:#ecebe5;--mut:#9c9a90;--line:#3a3a36;--card:#232321;--k0:#ee7d57;--k1:#f0b81f;--k2:#5aa5e6;--surf:#9a9a90;--acc:#5aa5e6}}
+:root[data-theme="dark"]{--bg:#171716;--fg:#ecebe5;--mut:#9c9a90;--line:#3a3a36;--card:#232321;--k0:#ee7d57;--k1:#f0b81f;--k2:#5aa5e6;--surf:#9a9a90;--acc:#5aa5e6}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 Georgia,'Times New Roman',serif}
+main{max-width:740px;margin:0 auto;padding:40px 20px 80px}
+h1{font-size:clamp(30px,6vw,46px);line-height:1.15;margin:.2em 0 .4em}
+h2{font-size:26px;margin:2.4em 0 .4em;line-height:1.25}
+h2 small{display:block;font:600 12px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);margin-bottom:8px}
+p{margin:.8em 0}.lead{font-size:20px;color:var(--mut)}
+figure{margin:1.4em 0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+canvas{width:100%;height:340px;display:block}canvas.t{height:400px;cursor:grab}canvas.sq{height:auto;aspect-ratio:1/1;max-width:460px;margin:0 auto}.ctl{font:14px/1.9 system-ui,sans-serif;margin:10px 0}.ctl input[type=number],.ctl select{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit}.ctl input[type=number]{width:72px}.ctl label{display:flex;gap:10px;align-items:center}.ctl label input{flex:1}button.on{background:var(--acc);color:var(--bg)}
+figcaption{font:13px/1.4 system-ui,sans-serif;color:var(--mut);margin-top:8px}
+.leg span,.k0,.k1,.k2{font-family:system-ui,sans-serif}.k0{color:var(--k0)}.k1{color:var(--k1)}.k2{color:var(--k2)}
+.leg{font:13px system-ui,sans-serif;display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}
+.eq{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.eq div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;text-align:center;font-size:20px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row canvas{height:230px}
+button{font:13px system-ui,sans-serif;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 10px;margin:8px 6px 0 0;cursor:pointer}
+.stats{display:flex;gap:18px;flex-wrap:wrap;font:14px system-ui,sans-serif;margin:8px 0}
+.stats b{font-size:24px;display:block}
+input[type=range]{width:100%}
+li{margin:.4em 0}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+</style></head><body><main>
+<p class="lead" style="font-family:system-ui,sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Machine Learning · Feature Lifting</p>
+<h1>How does a classifier decide where one class ends and another begins?</h1>
+<p class="lead">A classification model analyzes data to find the patterns that mark which class it belongs to. But how does a model find the cutoff for a class when data can vary so greatly?</p>
+
+<h2><small>Section 1</small>Decision Boundaries</h2>
+<p>Let’s look at a simple example.</p>
+<p>Let's say we have a dataset which contains many points with two features: x<sub>1</sub> and x<sub>2</sub>. Each data point also has an output value. When graphing the data (with x<sub>2</sub> shown as the y-axis), we can choose to display the output values using the shape of each point (one type of output or class is marked with a triangle and the other with a star). A good model will realize the triangles and stars can be separated with a line. This line is a boundary between the classes, called the <b>decision boundary</b>.</p>
+<figure><canvas id="c1" class="sq"></canvas><div class="leg"><span class="k0">▲ output 0</span><span class="k1">★ output 1</span></div><figcaption>Dataset 1: data, of type triangle and type circle, with a line creating the decision boundary.</figcaption></figure>
+<p>When a new data point is entered to the model, its values for x<sub>1</sub> and x<sub>2</sub> are checked against the decision boundary. In this case, if the point falls on the graph to the left/above the boundary on the graph, the model predicts "triangle". Otherwise, it predicts "star".</p>
+
+<h2><small>Section 2</small>Linear Classifiers</h2>
+<p>For a model, finding a decision boundary means optimizing the parameters of an equation. The human, visual answer is not scalable, and hence not usable for most applications.</p>
+<p>For finding the best <em>linear</em> boundary, the model optimizes the parameters of y and m in <b>y = m<sub>0</sub> + m<sub>1</sub>x<sub>1</sub> + m<sub>2</sub>x<sub>2</sub> + …</b>, where the equation continues with each feature shown as x, and an m value associated with each.</p>
+<p>Without the linear requirement, the equation can be far more complicated, with many more parameters and possibilities to test for. Some examples of nonlinear equations are below. Consider how many possibilities a model would have to test to land on one of these possibilities, and the added amount of time, energy, and effort that would take in comparison to only checking linear possibilities.</p>
+<div class="eq"><div>y = x<sub>1</sub> + x<sub>2</sub><sup>3</sup></div><div>y = x<sub>1</sub>x<sub>2</sub></div><div>y = 1 / (1 + e<sup>x<sub>1</sub>x<sub>2</sub></sup>)</div></div>
+<p style="font:13px system-ui,sans-serif;color:var(--mut)">Examples of nonlinear decision boundaries.</p>
+<p>There is another downside to nonlinear models: they can have relatively “lumpy” loss landscapes. It's harder to navigate (possibly with more local minimums where a model could get stuck) which makes it harder to find the optimum model parameters. A linear boundary equation means a simpler-to-optimize landscape (a more optimum optimization process!).</p>
+<p>In the end, a linear function limitation to decision boundaries is less computationally expensive and time consuming. A classifier with that limitation is a <b>linear classifier</b>.</p>
+
+<h2><small>Section 3</small>What if you can’t?</h2>
+<p>Sometimes a linear boundary doesn't seem like the best idea. In fact, looking at the next dataset's graph, we can see that a line would an abysmal idea. It would make a lot of errors... whereas a circle might just work.</p>
+<figure><canvas id="c2" class="sq"></canvas><div class="leg"><span class="k0">▲ output 0</span><span class="k1">★ output 1</span></div><figcaption>Dataset 2: no clear linear boundary.</figcaption></figure>
+<p>So, the model does something counterintuitive to our previous discussion on decreasing complexity: it <em>increases</em> the computational complexity by <em>increasing the dimensions</em>.</p>
+<p>The reasons why we choose to do this will become clear in a moment. For now, try to understand that increasing dimensions and keeping the linear limitation can be much nicer than removing the nonlinear requirement in fewer dimensions, both in terms of computational cost and the loss landscape. Let’s try it.</p>
+
+<h2><small>Section 4</small>Feature Lifting</h2>
+<p>We may have agreed to add dimensions, but now we need to decide where it comes from - dimensions can't be added by magic. Each one is supposed to represent a feature of the data. So, to stay true to the original data, new features must be built from the original ones. x<sub>3</sub> (think z on an xyz-graph) has to be some combination of x<sub>1</sub> and x<sub>2</sub>.</p>
+<p>The boundary we want is a circle around the origin - which marks a set distance from the origin. Using this information, we can manually define <b>x<sub>3</sub> = √(x<sub>1</sub><sup>2</sup> + x<sub>2</sub><sup>2</sup>)</b> so that our new feature is defined by the original features and the new feature shows the distance for each data point from the origin.</p>
+<figure><canvas id="c3" class="t"></canvas><div class="leg"><span class="k0">▲ output 0</span><span class="k1">★ output 1</span></div><figcaption>Drag to rotate. The linear slice separates every triangle from every star.</figcaption></figure>
+<p>In the 3-D graph above, the triangles and stars are in the same locations in regard to an xy-graph, but now hold a z-value which raises them based on their distance to the origin. What’s fascinating is how well a linear boundary works now. x<sub>3</sub> = 6 is a flat slice that cleanly separates the two categories. <b>We have achieved a linear decision boundary!</b></p>
+
+<h2><small>Section 5</small>Are we sure?</h2>
+<p>That’s a little confusing, so let’s step away from the dataset for a second. Let's graph x<sub>3</sub> for <em>all</em> of the x<sub>1</sub> and x<sub>2</sub> values, not just the data points. The function creates a cone-like shape.</p>
+<figure><canvas id="c4" class="t"></canvas><figcaption>x<sub>3</sub> = √(x<sub>1</sub><sup>2</sup> + x<sub>2</sub><sup>2</sup>) for all x<sub>1</sub>, x<sub>2</sub>.</figcaption></figure>
+<p>Our suggested slice of x<sub>3</sub> = 6 cuts through it. Since x<sub>3</sub> represents the distance to the origin, the linear slice marks every spot on the xy- or x<sub>1</sub>x<sub>2</sub>-grid that is 6 units from the origin. This is our decision boundary.</p>
+<figure><canvas id="c5" class="t"></canvas><figcaption>Drag to rotate. The red line marks where the cone and the slice intersect. Try “Top view” to see only the x<sub>1</sub>–x<sub>2</sub> grid.</figcaption></figure>
+<p>Marking points that are 6 units away matches our understanding of a circle, which is what we visually expected for this dataset, and sure enough, the points where the cone and linear slice meet create a circle. Notice that the decision to define x<sub>3</sub> by the distance formula was key to the result.</p>
+<p>Removing x<sub>3</sub> but keeping the cone-slice intersection shows the circle clearly. Returning to our dataset, we can confirm this circle shape works for separating the triangle and star classes.</p>
+<p>A linear answer in 3-D has become the nonlinear answer in 2-D that the dataset needed.</p>
+<figure><canvas id="c6" class="sq"></canvas><figcaption>Dataset 2 with a circular boundary.</figcaption></figure>
+<p>Now let’s confirm how helpful feature lifting was. Below are (hypothetical but realistic) loss landscapes for the 2-D nonlinear problem and the 3-D linear one. Recall that the model doesn't get to see the full landscape immediately, it only sees the current value and slope. On the lumpy landscape, the model can easily convince itself it has reached its final point when it hasn’t. The smooth one is far easier to navigate.</p>
+<figure><div class="row"><canvas id="l1"></canvas><canvas id="l2"></canvas></div><figcaption>Left: loss landscape of a 2-D nonlinear boundary. Right: loss landscape of a 3-D linear boundary. For illustrative purposes.</figcaption></figure>
+
+<h2><small>Section 6</small>Again!</h2>
+<p>Here is another dataset, this time with three classes shown as triangles, stars, and squares. In 2-D, no straight line can accurately separate them. The classes sit in sections better described as curved bands.</p>
+<figure><canvas id="c7"></canvas><div class="leg"><span class="k0">▲ class 0</span><span class="k1">★ class 1</span><span class="k2">■ class 2</span></div><figcaption>Dataset 3: no clear linear boundaries.</figcaption></figure>
+<p>The model then analyzes the dataset and runs through a polynomial kernel of possibilities for the x<sub>3</sub> dimension equation (which includes versions of 1, √2 x<sub>1</sub>, √2 x<sub>2</sub>, √2 x<sub>1</sub>x<sub>2</sub>, x<sub>1</sub><sup>2</sup>, x<sub>2</sub><sup>2</sup>). In this case, our model ran different scenarios and chose <b>x<sub>3</sub> = −x<sub>1</sub><sup>2</sup> + x<sub>2</sub></b>. It then looked for linear planes to define the boundaries between the classes and optimized them by their loss landscape. The result is x<sub>3</sub> = 1.2x<sub>1</sub> + 0.05x<sub>2</sub> + 2 and x<sub>3</sub> = −0.9x<sub>1</sub> + 0.15x<sub>2</sub> − 10.</p>
+<figure><canvas id="c8" class="t"></canvas><figcaption>Drag to rotate. Two planes divide the points into three groups.</figcaption></figure>
+<p>Both slices are (linear) planes in 3-D, so even this larger problem can be handled by a linear classifier. Back in 2-D, we get the corresponding nonlinear boundaries (nonlinear for 2-D).</p>
+<figure><canvas id="c9"></canvas><figcaption>The linear 3-D boundaries appear parabolic in 2-D.</figcaption></figure>
+
+<h2><small>Section 7</small>To Summarize</h2>
+<ul>
+<li>A <b>decision boundary</b> is the cutoff where a classifier switches from one class to another.</li>
+<li><b>Linear classifiers</b> are restricted to linear boundaries, since nonlinear options can be more costly and be harder to optimize.</li>
+<li>When no line fits the restrictions and separates the data with an appropriate level of accuracy, <b>feature lifting</b> adds dimensions built from the original features, and possibly meant to highlight some pattern in the data.</li>
+<li>A linear boundary in the higher-dimensional space can appear nonlinear when brought back to the original features.</li>
+</ul>
+
+<h2><small>Section 8</small>Bigger, Better Examples</h2>
+<p>Lastly, let's look at some more datasets. First, we have a 2-feature dataset with no easily visualized boundary.</p>
+<p>Use the slider to choose how many dimensions the model uses to find a solution (from 2 to 10). The extra dimensions are polynomial lifts of x<sub>1</sub> and x<sub>2</sub>, and the model fits a <em>linear</em> boundary in that space.</p>
+<p>Notice that a perfect solution may be impossible for this dataset. Despite the nature of the manipulated datasets used in the above examples, feature lifting (and any model optimization) is not meant to produce perfect results. Feature lifting is a tool to improve accuracy and take advantage of the many patterns in data and the linear benefit.</p>
+<figure><canvas id="c10"></canvas>
+<label style="font:14px system-ui,sans-serif">Dimensions: <b id="dv">2</b><input id="sl" type="range" min="2" max="10" value="2"></label>
+<div class="stats"><div><b id="sa">–</b>Accuracy</div><div><b id="se">–</b>Error rate</div><div><b id="sl2">–</b>Log-loss</div></div>
+<div style="font:12px system-ui,sans-serif;color:var(--mut)" id="ft"></div></figure>
+<p>Here's another 2-D dataset with two classes, similar to the first. In <b>2-D</b>, drag the line (grab a handle to tilt it, or the line itself to slide it) or type its equation. Points above the line are predicted as triangles, and points below as stars, unless you switch this by pressing "flip sides".</p>
+<p>If you can't find a solution there with an acceptable level of error, switch to <b>3-D</b> and use the newest skill in your toolkit: feature lifting. Choose how x<sub>3</sub> is built from x<sub>1</sub> and x<sub>2</sub>, and move a linear plane with the sliders.</p>
+<p>Accuracy and error update live. Red rings mark the points your boundary gets wrong.</p>
+<p>Your goal is to find a linear decision boundary for this datset with the lowest error. Can you find a perfect solution?</p>
+<figure>
+<div><button id="wb2" class="on">2-D</button><button id="wb3">3-D</button><button id="wfl">Flip sides</button></div>
+<canvas id="cw2" class="sq"></canvas>
+<div id="w3" style="display:none"><canvas id="cw3" class="t"></canvas></div>
+<div class="ctl" id="wp2">Line: x₂ = <input id="wim" type="number" step="0.1" value="0"> · x₁ + <input id="wib" type="number" step="0.1" value="0"></div>
+<div class="ctl" id="wp3" style="display:none">x₃ = <select id="wks"></select>
+<label>Tilt toward x₁ (a) <input id="wra" type="range"></label>
+<label>Tilt toward x₂ (b) <input id="wrb" type="range"></label>
+<label>Height (c) <input id="wrc" type="range"></label>
+Plane: x₃ = a·x₁ + b·x₂ + c. Points above the plane are triangles; points below are stars.</div>
+<div style="font:14px system-ui,sans-serif;color:var(--mut)" id="wq"></div>
+<div class="stats"><div><b id="wsa">–</b>Accuracy</div><div><b id="wse">–</b>Error rate</div><div><b id="wsn">–</b>Correct</div></div>
+<div class="leg"><span class="k0">▲ output 0</span><span class="k1">★ output 1</span><span style="color:var(--mut)">Red ring: misclassified data points.</span></div>
+<figcaption>Drag the graph to rotate it. Can you find a way to classify everything correctly?</figcaption></figure>
+</main>
+<script>
+const draws=[];
+const col=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+function rng(s){return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
+function setup(c){const d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);return[g,w,h]}
+function mk(g,k,x,y,r){g.fillStyle=col('--k'+k);g.beginPath();
+ if(k==0){g.moveTo(x,y-r);g.lineTo(x+r,y+r*.8);g.lineTo(x-r,y+r*.8);g.closePath()}
+ else if(k==1){for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,q=i%2?r*.45:r*1.15;g[i?'lineTo':'moveTo'](x+q*Math.cos(a),y+q*Math.sin(a))}g.closePath()}
+ else g.rect(x-r*.8,y-r*.8,r*1.6,r*1.6);g.fill()}
+function lineFn(f,xr){const a=[];for(let i=0;i<=120;i++){const x=xr[0]+(xr[1]-xr[0])*i/120;a.push([x,f(x)])}return a}
+function circ(r){const a=[];for(let i=0;i<=120;i++){const t=i/120*6.2832;a.push([r*Math.cos(t),r*Math.sin(t)])}return a}
+function plot2(c,o){const draw=()=>{const[g,w,h]=setup(c),p=34,[x0,x1]=o.xr,[y0,y1]=o.yr;
+ const X=x=>p+(x-x0)/(x1-x0)*(w-2*p),Y=y=>h-p-(y-y0)/(y1-y0)*(h-2*p);
+ if(o.bg){const s=6;g.globalAlpha=.2;for(let i=p;i<w-p;i+=s)for(let j=p;j<h-p;j+=s){const x=x0+(i+s/2-p)/(w-2*p)*(x1-x0),y=y1-(j+s/2-p)/(h-2*p)*(y1-y0);g.fillStyle=col('--k'+o.bg(x,y));g.fillRect(i,j,s,s)}g.globalAlpha=1}
+ g.strokeStyle=col('--line');g.lineWidth=1;g.strokeRect(p,p,w-2*p,h-2*p);
+ g.beginPath();if(y0<0&&y1>0){g.moveTo(p,Y(0));g.lineTo(w-p,Y(0))}if(x0<0&&x1>0){g.moveTo(X(0),p);g.lineTo(X(0),h-p)}g.stroke();
+ g.fillStyle=col('--mut');g.font='12px system-ui';g.fillText('x₁',w-p-14,h-p+16);g.fillText('x₂',p-26,p+10);
+ g.strokeStyle=col('--fg');g.lineWidth=2;
+ for(const cv of o.curves||[]){g.beginPath();let on=0;for(const[x,y]of cv){if(y<y0||y>y1||x<x0||x>x1){on=0;continue}g[on?'lineTo':'moveTo'](X(x),Y(y));on=1}g.stroke()}
+ for(const q of o.pts)mk(g,q[2],X(q[0]),Y(q[1]),o.r||6);o.after&&o.after(g,X,Y)};draws.push(draw);draw();c._draw=draw}
+function plot3(c,o){const st={yaw:o.yaw??.7,pitch:o.pitch??.45},R=o.r;
+ const draw=()=>{const[g,w,h]=setup(c),S=Math.min(w,h)*.34,n=(v,i)=>(v-R[i][0])/(R[i][1]-R[i][0])*2-1;
+ const P=(x,y,z)=>{const a=n(x,0),b=n(y,1),e=n(z,2),cy=Math.cos(st.yaw),sy=Math.sin(st.yaw),cp=Math.cos(st.pitch),sp=Math.sin(st.pitch);
+  const xr=a*cy-b*sy,yr=a*sy+b*cy;return[w/2+xr*S*1.15,h/2-(e*cp+yr*sp)*S*1.15,yr*cp-e*sp]};
+ const L=(pts,sc,al,lw)=>{g.strokeStyle=sc;g.globalAlpha=al;g.lineWidth=lw||1;g.beginPath();pts.forEach((q,i)=>{const s=P(...q);g[i?'lineTo':'moveTo'](s[0],s[1])});g.stroke();g.globalAlpha=1};
+ const cs=[-1,1].flatMap(a=>[-1,1].flatMap(b=>[[0,a,b],[1,a,b],[2,a,b]]));
+ const V=(i,u)=>R[i][0]+(u+1)/2*(R[i][1]-R[i][0]);
+ for(let k=0;k<3;k++)for(const a of[-1,1])for(const b of[-1,1]){const A=[0,0,0],B=[0,0,0],idx=[0,1,2].filter(j=>j!=k);A[k]=R[k][0];B[k]=R[k][1];A[idx[0]]=B[idx[0]]=V(idx[0],a);A[idx[1]]=B[idx[1]]=V(idx[1],b);L([A,B],col('--line'),1)}
+ g.fillStyle=col('--mut');g.font='12px system-ui';
+ [['x₁',[R[0][1],R[1][0],R[2][0]]],['x₂',[R[0][0],R[1][1],R[2][0]]],['x₃',[R[0][0],R[1][0],R[2][1]]]].forEach(([t,q])=>{const s=P(...q);g.fillText(t,s[0]+4,s[1]-4)});
+ if(o.surf){g.lineWidth=1;const N=18,M=48;for(let i=0;i<=N;i++)for(const d of[0,1]){g.strokeStyle=col('--surf');g.globalAlpha=.55;g.beginPath();let on=0;for(let j=0;j<=M;j++){const u=R[0][0]+(R[0][1]-R[0][0])*i/N,v=R[1][0]+(R[1][1]-R[1][0])*j/M,x=d?v:u,y=d?u:v,z=o.surf(x,y);if(z<R[2][0]||z>R[2][1]){on=0;continue}const s=P(x,y,z);g[on?'lineTo':'moveTo'](s[0],s[1]);on=1}g.stroke()}g.globalAlpha=1}
+ for(const z of o.planes||[]){const q=[[R[0][0],R[1][0]],[R[0][1],R[1][0]],[R[0][1],R[1][1]],[R[0][0],R[1][1]]].map(a=>P(a[0],a[1],typeof z=='function'?z(a[0],a[1]):z));g.fillStyle=col('--acc');g.globalAlpha=.2;g.beginPath();q.forEach((s,i)=>g[i?'lineTo':'moveTo'](s[0],s[1]));g.closePath();g.fill();g.globalAlpha=1;g.strokeStyle=col('--acc');g.lineWidth=2;g.stroke()}
+ for(const ln of o.lines||[])L(ln,'#e5322d',1,3.5);
+ o.pts.map(q=>[P(q[0],q[1],q[2]),q[3],q[4]]).sort((a,b)=>b[0][2]-a[0][2]).forEach(([s,k,w])=>{mk(g,k,s[0],s[1],5.5);if(w){g.strokeStyle='#e5322d';g.lineWidth=2;g.beginPath();g.arc(s[0],s[1],9,0,7);g.stroke()}})};
+ draws.push(draw);draw();
+ c._draw=draw;if(o.interact===false)return;
+ let dn=0,lx,ly;c.style.touchAction='none';
+ c.onpointerdown=e=>{dn=1;lx=e.clientX;ly=e.clientY;c.setPointerCapture(e.pointerId);c.style.cursor='grabbing'};
+ c.onpointerup=()=>{dn=0;c.style.cursor='grab'};
+ c.onpointermove=e=>{if(!dn)return;st.yaw+=(e.clientX-lx)*.01;st.pitch=Math.max(0,Math.min(1.5708,st.pitch+(e.clientY-ly)*.01));lx=e.clientX;ly=e.clientY;draw()};
+ const bar=document.createElement('div');[['Top view',1.5708,0],['Side view',0,0],['Reset',o.pitch??.45,o.yaw??.7]].forEach(([t,p,y])=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>{st.pitch=p;if(t!='Side view'||1)st.yaw=t=='Top view'?0:y;draw()};bar.appendChild(b)});c.after(bar)}
+
+// Data
+const r1=rng(7),r2=rng(21),r3=rng(5),r4=rng(99);
+const D1=[];while(D1.length<40){const x=r1()*16-8,y=r1()*16-8;if(Math.abs(y-x)>1.6)D1.push([x,y,y>x?0:1])}
+const D2=[];while(D2.length<110){const x=r2()*18-9,y=r2()*18-9,r=Math.hypot(x,y);if(Math.abs(r-6)>.7)D2.push([x,y,r<6?1:0])}
+const fA=(x,y)=>1.2*x+.05*y+2,fB=(x,y)=>-.9*x+.15*y-10;
+const D3=[];while(D3.length<150){const x=r3()*8-4,y=r3()*26-14,z=-x*x+y,a=z-fA(x,y),b=z-fB(x,y);if(Math.abs(a)>.9&&Math.abs(b)>.9)D3.push([x,y,a>0?0:b>0?1:2,z])}
+const yb=x=>.06*x**3-.9*x;
+const D4=[];for(let i=0;i<260;i++){const x=r4()*10-5,y=r4()*12-6;const k=r4()<1/(1+Math.exp(-(y-yb(x))/1.1))?1:0;D4.push([x,y,k])}
+
+plot2(c1,{xr:[-8,8],yr:[-8,8],pts:D1,curves:[lineFn(x=>x,[-8,8])]});
+plot2(c2,{xr:[-10,10],yr:[-10,10],pts:D2,r:5});
+plot3(c3,{r:[[-9,9],[-9,9],[0,12]],pts:D2.map(q=>[q[0],q[1],Math.hypot(q[0],q[1]),q[2]]),planes:[6]});
+const cone=(x,y)=>Math.hypot(x,y);
+plot3(c4,{r:[[-9,9],[-9,9],[0,12]],pts:[],surf:cone,interact:false,pitch:.35});
+plot3(c5,{r:[[-9,9],[-9,9],[0,12]],pts:[],surf:cone,planes:[6],lines:[circ(6).map(q=>[q[0],q[1],6])]});
+plot2(c6,{xr:[-10,10],yr:[-10,10],pts:D2,r:5,curves:[circ(6)]});
+function lp(c,f,mark,lab){draws.push(()=>{const[g,w,h]=setup(c),p=26,a=lineFn(f,[-6,6]),ys=a.map(q=>q[1]),lo=Math.min(...ys),hi=Math.max(...ys);
+ const X=x=>p+(x+6)/12*(w-2*p),Y=y=>h-p-(y-lo)/(hi-lo)*(h-2*p-20);
+ g.strokeStyle=col('--fg');g.lineWidth=2;g.beginPath();a.forEach((q,i)=>g[i?'lineTo':'moveTo'](X(q[0]),Y(q[1])));g.stroke();
+ g.fillStyle=col('--mut');g.font='12px system-ui';g.fillText('loss',4,14);g.fillText('parameter →',w-80,h-6);
+ if(mark!=null){g.fillStyle=col('--k0');g.beginPath();g.arc(X(mark),Y(f(mark)),6,0,7);g.fill();g.fillText(lab,X(mark)-30,Y(f(mark))-12)}});draws.at(-1)()}
+lp(l1,t=>.04*t*t+.9*Math.sin(1.7*t)+.0*t-.05*t,.95,'stuck here');
+lp(l2,t=>.1*t*t,0,'minimum');
+plot2(c7,{xr:[-4,4],yr:[-14,12],pts:D3,r:5});
+plot3(c8,{r:[[-4,4],[-14,12],[-30,12]],pts:D3.map(q=>[q[0],q[1],q[3],q[2]]),planes:[fA,fB]});
+plot2(c9,{xr:[-4,4],yr:[-14,12],pts:D3,r:5,curves:[lineFn(x=>(x*x+1.2*x+2)/.95,[-4,4]),lineFn(x=>(x*x-.9*x-10)/.85,[-4,4])]});
+
+// Section 8: logistic regression on polynomial lifts
+const F=[(a,b)=>a,(a,b)=>b,(a,b)=>a*a,(a,b)=>a*b,(a,b)=>b*b,(a,b)=>a**3,(a,b)=>a*a*b,(a,b)=>a*b*b,(a,b)=>b**3,(a,b)=>a**4];
+const FN=['x₁','x₂','x₁²','x₁x₂','x₂²','x₁³','x₁²x₂','x₁x₂²','x₂³','x₁⁴'];
+const sg=z=>1/(1+Math.exp(-z));
+function train(d){const ft=(a,b)=>F.slice(0,d).map(f=>f(a,b)),X=D4.map(q=>ft(q[0],q[1])),n=X.length;
+ const mu=Array(d).fill(0),sd=Array(d).fill(0);X.forEach(r=>r.forEach((v,j)=>mu[j]+=v/n));X.forEach(r=>r.forEach((v,j)=>sd[j]+=(v-mu[j])**2/n));sd.forEach((v,j)=>sd[j]=Math.sqrt(v)||1);
+ const Z=X.map(r=>[1,...r.map((v,j)=>(v-mu[j])/sd[j])]),w=Array(d+1).fill(0),m=w.slice(),v=w.slice();
+ for(let t=1;t<=1500;t++){const g=Array(d+1).fill(0);for(let i=0;i<n;i++){const e=sg(Z[i].reduce((s,a,j)=>s+a*w[j],0))-D4[i][2];for(let j=0;j<=d;j++)g[j]+=e*Z[i][j]/n}
+  for(let j=0;j<=d;j++){m[j]=.9*m[j]+.1*g[j];v[j]=.999*v[j]+.001*g[j]**2;w[j]-=.05*(m[j]/(1-.9**t))/(Math.sqrt(v[j]/(1-.999**t))+1e-8)}}
+ const pr=(a,b)=>{const f=ft(a,b);return sg(w[0]+f.reduce((s,x,j)=>s+w[j+1]*(x-mu[j])/sd[j],0))};
+ let ok=0,ls=0;D4.forEach(q=>{const p=pr(q[0],q[1]);if((p>.5)==(q[2]==1))ok++;ls-=Math.log(Math.max(1e-9,q[2]?p:1-p))/n});
+ return{pr,acc:ok/n,loss:ls}}
+const M={};for(let d=2;d<=10;d++)M[d]=train(d);
+let cur=2;
+const cv=document.getElementById('c10');
+draws.push(()=>{const mo=M[cur];plot2s(mo)});
+function plot2s(mo){const[g,w,h]=setup(cv),p=30,xr=[-5,5],yr=[-6,6],X=x=>p+(x+5)/10*(w-2*p),Y=y=>h-p-(y+6)/12*(h-2*p),s=6;
+ g.globalAlpha=.22;for(let i=p;i<w-p;i+=s)for(let j=p;j<h-p;j+=s){const x=-5+(i+s/2-p)/(w-2*p)*10,y=6-(j+s/2-p)/(h-2*p)*12;g.fillStyle=col(mo.pr(x,y)>.5?'--k1':'--k0');g.fillRect(i,j,s,s)}g.globalAlpha=1;
+ g.strokeStyle=col('--line');g.strokeRect(p,p,w-2*p,h-2*p);D4.forEach(q=>mk(g,q[2],X(q[0]),Y(q[1]),4.5))}
+function upd(){cur=+sl.value;const m=M[cur];dv.textContent=cur;sa.textContent=(m.acc*100).toFixed(1)+'%';se.textContent=((1-m.acc)*100).toFixed(1)+'%';sl2.textContent=m.loss.toFixed(3);
+ ft.textContent='Features used: '+FN.slice(0,cur).join(', ');plot2s(m);
+ bars.innerHTML=Object.keys(M).map(d=>`<div class="${d==cur?'on':''}" style="height:${M[d].acc*100}%">${d}</div>`).join('')}
+sl.oninput=upd;
+const r5=rng(33),D5=[];{let na=0,nb=0;while(na<60||nb<60){const x=r5()*16-8,y=r5()*16-8,d=Math.hypot(x-1,y+.5);if(Math.abs(d-4.5)<.5)continue;const k=d<4.5?1:0;if(k?na<60:nb<60){D5.push([x,y,k,0]);k?na++:nb++}}}
+const KS=[['x₁²',(x,y)=>x*x],['x₂²',(x,y)=>y*y],['x₁x₂',(x,y)=>x*y],['x₁² + x₂²',(x,y)=>x*x+y*y],['x₁² − x₂²',(x,y)=>x*x-y*y],['x₁³',(x,y)=>x**3]];
+const S={mode:2,m:0,b:0,f:0,ki:0,a:0,bb:0,c:0};
+const f2=(x,y)=>(y>S.m*x+S.b?0:1)^S.f,f3=(x,y)=>(KS[S.ki][1](x,y)>S.a*x+S.bb*y+S.c?0:1)^S.f;
+const O2={xr:[-8,8],yr:[-8,8],pts:D5,curves:[],r:5,after(g,X,Y){D5.forEach(q=>{if(q[3]){g.strokeStyle='#e5322d';g.lineWidth=2;g.beginPath();g.arc(X(q[0]),Y(q[1]),9,0,7);g.stroke()}});[-6,6].forEach(x=>{g.fillStyle=col('--acc');g.strokeStyle=col('--bg');g.lineWidth=2;g.beginPath();g.arc(X(x),Y(S.m*x+S.b),8,0,7);g.fill();g.stroke()})}};
+const O3={r:[[-8,8],[-8,8],[0,1]],pts:[],planes:[(x,y)=>S.a*x+S.bb*y+S.c]};
+plot2(cw2,O2);plot3(cw3,O3);
+const sg2=v=>v<0?'−':'+';
+function wu(){const f=S.mode==2?f2:f3;let ok=0;D5.forEach(q=>{q[3]=f(q[0],q[1])!=q[2]?1:0;if(!q[3])ok++});const n=D5.length;
+ wsa.textContent=(ok/n*100).toFixed(1)+'%';wse.textContent=((1-ok/n)*100).toFixed(1)+'%';wsn.textContent=ok+' of '+n;
+ O2.curves=[lineFn(x=>S.m*x+S.b,[-8,8])];const g=KS[S.ki][1];O3.pts=D5.map(q=>[q[0],q[1],g(q[0],q[1]),q[2],q[3]]);
+ wq.textContent=S.mode==2?`x₂ = ${S.m.toFixed(2)}·x₁ ${sg2(S.b)} ${Math.abs(S.b).toFixed(2)}`:`x₃ = ${S.a.toFixed(2)}·x₁ ${sg2(S.bb)} ${Math.abs(S.bb).toFixed(2)}·x₂ ${sg2(S.c)} ${Math.abs(S.c).toFixed(1)}`;
+ (S.mode==2?cw2:cw3)._draw()}
+function wk(){S.ki=+wks.value;const g=KS[S.ki][1],zs=D5.map(q=>g(q[0],q[1])),lo=Math.min(...zs),hi=Math.max(...zs),zr=hi-lo||1,pd=zr*.1,sm=zr/8;
+ O3.r[2][0]=lo-pd;O3.r[2][1]=hi+pd;[wra,wrb].forEach(e=>{e.min=-sm;e.max=sm;e.step=sm/100;e.value=0});wrc.min=lo-pd;wrc.max=hi+pd;wrc.step=zr/200;wrc.value=(lo+hi)/2;S.a=S.bb=0;S.c=+wrc.value;wu()}
+wks.innerHTML=KS.map((k,i)=>`<option value="${i}">${k[0]}</option>`).join('');wks.value=0;wks.onchange=wk;
+wra.oninput=()=>{S.a=+wra.value;wu()};wrb.oninput=()=>{S.bb=+wrb.value;wu()};wrc.oninput=()=>{S.c=+wrc.value;wu()};
+wim.oninput=()=>{S.m=+wim.value||0;wu()};wib.oninput=()=>{S.b=+wib.value||0;wu()};
+wfl.onclick=()=>{S.f^=1;wu()};
+function wm(n){S.mode=n;cw2.style.display=n==2?'':'none';w3.style.display=n==3?'':'none';wp2.style.display=n==2?'':'none';wp3.style.display=n==3?'':'none';wb2.classList.toggle('on',n==2);wb3.classList.toggle('on',n==3);wu()}
+wb2.onclick=()=>wm(2);wb3.onclick=()=>wm(3);
+let dg=null;cw2.style.touchAction='none';
+const wxy=e=>{const r=cw2.getBoundingClientRect();return[-8+(e.clientX-r.left-34)/(r.width-68)*16,8-(e.clientY-r.top-34)/(r.height-68)*16]};
+cw2.onpointerdown=e=>{const[x,y]=wxy(e),h=[-6,6].find(hx=>Math.abs(x-hx)<1.1&&Math.abs(y-(S.m*hx+S.b))<1.1);
+ if(h!==undefined)dg={t:'h',h};else if(Math.abs(y-(S.m*x+S.b))<.9)dg={t:'l',y0:y,b0:S.b};if(dg)cw2.setPointerCapture(e.pointerId)};
+cw2.onpointermove=e=>{if(!dg)return;const[x,y]=wxy(e),yc=Math.max(-12,Math.min(12,y));
+ if(dg.t=='h'){let a=S.m*-6+S.b,b=S.m*6+S.b;if(dg.h<0)a=yc;else b=yc;S.m=(b-a)/12;S.b=(a+b)/2}else S.b=dg.b0+(y-dg.y0);
+ wim.value=S.m.toFixed(2);wib.value=S.b.toFixed(2);wu()};
+cw2.onpointerup=()=>{dg=null};
+wk();
+function all(){draws.forEach(f=>f());upd()}
+addEventListener('resize',all);matchMedia('(prefers-color-scheme:dark)').addEventListener('change',all);all();
+</script></body></html>
